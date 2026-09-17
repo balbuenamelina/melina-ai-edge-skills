@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+</head>
+<body>
+
+<script>
+window.ai_edge_gallery_get_result = async function(data) {
+  try {
+    const input = JSON.parse(data);
+
+    const topic = String(input.topic || "").trim();
+    const lang = String(input.lang || "es").trim().toLowerCase();
+
+    if (!topic) {
+      return JSON.stringify({
+        error: "Falta el tema de búsqueda."
+      });
+    }
+
+    const url =
+      "https://" + lang + ".wikipedia.org/w/api.php" +
+      "?action=query" +
+      "&format=json" +
+      "&origin=*" +
+      "&redirects=1" +
+      "&titles=" + encodeURIComponent(topic) +
+      "&prop=extracts" +
+      "&exintro=1" +
+      "&explaintext=1";
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error("Wikipedia respondió con código " + response.status);
+    }
+
+    const wiki = await response.json();
+
+    if (!wiki.query || !wiki.query.pages) {
+      return JSON.stringify({
+        error: "Wikipedia no devolvió resultados."
+      });
+    }
+
+    const page = Object.values(wiki.query.pages)[0];
+
+    if (!page || page.missing !== undefined) {
+      return JSON.stringify({
+        error: "No encontré una página para: " + topic
+      });
+    }
+
+    let text = String(page.extract || "").trim();
+
+    if (!text) {
+      return JSON.stringify({
+        error: "La página existe pero no devolvió un resumen."
+      });
+    }
+
+    if (text.length > 1800) {
+      text = text.substring(0, 1800) + "...";
+    }
+
+    return JSON.stringify({
+      result:
+        "Fuente: Wikipedia (" + lang + ")\n" +
+        "Artículo: " + page.title + "\n\n" +
+        text
+    });
+
+  } catch (error) {
+    return JSON.stringify({
+      error: "Error al consultar Wikipedia: " + error.message
+    });
+  }
+};
+</script>
+
+</body>
+</html>
